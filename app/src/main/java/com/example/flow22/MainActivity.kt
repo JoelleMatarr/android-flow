@@ -1,5 +1,6 @@
 package com.example.flow22
 
+import android.content.ComponentName
 import android.os.Bundle
 import android.util.Log
 import android.widget.FrameLayout
@@ -7,12 +8,18 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+//import androidx.wear.compose.material3.tokens.ColorTokens
 import com.checkout.components.core.CheckoutComponentsFactory
 import com.checkout.components.interfaces.Environment
 import com.checkout.components.interfaces.api.CheckoutComponents
@@ -22,6 +29,8 @@ import com.checkout.components.interfaces.component.ComponentOption
 import com.checkout.components.interfaces.error.CheckoutError
 import com.checkout.components.interfaces.model.PaymentMethodName
 import com.checkout.components.interfaces.model.PaymentSessionResponse
+import com.checkout.components.interfaces.component.RememberMeConfiguration
+import com.checkout.components.interfaces.model.Phone
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -37,8 +46,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        val paymentSessionID = "ps_2zafZsaRCeOAyDy0I9EvLA9jtSM"
-        val paymentSessionSecret = "pss_00cac805-cb93-4ff7-8867-8adf41d52f0d"
+//        CHANGE THE PS ID AND PS SECRET MANUALLY
+        val paymentSessionID = "ps_34n6r087EaiQeoPG9j6QnlmTBwW"
+        val paymentSessionSecret = "pss_d8d58285-b832-49a4-bdfd-ab94e8af938a"
 
         initializeCheckoutSDK(
             paymentSessionID = paymentSessionID,
@@ -69,6 +79,22 @@ class MainActivity : ComponentActivity() {
         paymentSessionID: String,
         paymentSessionSecret: String,
     ) {
+        //Remember me configuration --> With or Without it, I can see save card checkbox
+//        Once RM OTP is submitted it shows me the card form again instead of saved cards
+        val rememberMeConfiguration = RememberMeConfiguration(
+            data = RememberMeConfiguration.Data(
+                email = "jheng-hao.lin8@checkout.com",
+//                phone = Phone(
+//                    countryCode = "+971",
+//                    number = "524123793"
+//                )
+            ), showPayButton = true
+        )
+
+        val componentOption = ComponentOption(
+            showPayButton = true, rememberMeConfiguration = rememberMeConfiguration
+        )
+
         val configuration = CheckoutComponentConfiguration(
             context = this,
             paymentSession = PaymentSessionResponse(
@@ -76,7 +102,7 @@ class MainActivity : ComponentActivity() {
                 secret = paymentSessionSecret,
             ),
             componentCallback = customComponentCallback,
-            publicKey = "pk_sbox_usfgxjuyusrz4naf3lfza7crtu2",
+            publicKey = "pk_sbox_zxmkbjyj4ec7liyyup23gjfsga#",
             environment = Environment.SANDBOX
         )
 
@@ -84,9 +110,10 @@ class MainActivity : ComponentActivity() {
             try {
                 checkoutComponents = CheckoutComponentsFactory(config = configuration).create()
 
+//With or without the componentOption I can see the save card checkbox
                 var flow = checkoutComponents.create(
                     PaymentMethodName.Card,
-                    ComponentOption(showPayButton = true)
+                    componentOption
                 )
                 isCardAvailable = flow.isAvailable()
 
