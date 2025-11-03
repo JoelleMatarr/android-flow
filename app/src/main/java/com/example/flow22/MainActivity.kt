@@ -1,59 +1,53 @@
 package com.example.flow22
 
-import android.content.ComponentName
 import android.os.Bundle
 import android.util.Log
-import android.widget.FrameLayout
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement.spacedBy
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
-//import androidx.wear.compose.material3.tokens.ColorTokens
 import com.checkout.components.core.CheckoutComponentsFactory
 import com.checkout.components.interfaces.Environment
 import com.checkout.components.interfaces.api.CheckoutComponents
+import com.checkout.components.interfaces.api.PaymentMethodComponent
 import com.checkout.components.interfaces.component.CheckoutComponentConfiguration
 import com.checkout.components.interfaces.component.ComponentCallback
 import com.checkout.components.interfaces.component.ComponentOption
+import com.checkout.components.interfaces.component.RememberMeConfiguration
 import com.checkout.components.interfaces.error.CheckoutError
 import com.checkout.components.interfaces.model.PaymentMethodName
 import com.checkout.components.interfaces.model.PaymentSessionResponse
-import com.checkout.components.interfaces.component.RememberMeConfiguration
-import com.checkout.components.interfaces.model.Phone
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
 
     private lateinit var checkoutComponents: CheckoutComponents
 
-    private var isCardAvailable: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
-//        CHANGE THE PS ID AND PS SECRET MANUALLY
-        val paymentSessionID = "ps_34n6r087EaiQeoPG9j6QnlmTBwW"
-        val paymentSessionSecret = "pss_d8d58285-b832-49a4-bdfd-ab94e8af938a"
-
-        initializeCheckoutSDK(
-            paymentSessionID = paymentSessionID,
-            paymentSessionSecret = paymentSessionSecret
-        )
+        renderContent()
     }
 
     private val customComponentCallback = ComponentCallback(
@@ -71,23 +65,14 @@ class MainActivity : ComponentActivity() {
         },
     )
 
-    private fun handleActivityResult(resultCode: Int, data: String) {
-        checkoutComponents.handleActivityResult(resultCode, data)
-    }
 
-    private fun initializeCheckoutSDK(
+    private fun createConfigs(
         paymentSessionID: String,
         paymentSessionSecret: String,
-    ) {
-        //Remember me configuration --> With or Without it, I can see save card checkbox
-//        Once RM OTP is submitted it shows me the card form again instead of saved cards
+    ): Pair<ComponentOption, CheckoutComponentConfiguration> {
         val rememberMeConfiguration = RememberMeConfiguration(
             data = RememberMeConfiguration.Data(
                 email = "jheng-hao.lin8@checkout.com",
-//                phone = Phone(
-//                    countryCode = "+971",
-//                    number = "524123793"
-//                )
             ), showPayButton = true
         )
 
@@ -95,7 +80,7 @@ class MainActivity : ComponentActivity() {
             showPayButton = true, rememberMeConfiguration = rememberMeConfiguration
         )
 
-        val configuration = CheckoutComponentConfiguration(
+        val config = CheckoutComponentConfiguration(
             context = this,
             paymentSession = PaymentSessionResponse(
                 id = paymentSessionID,
@@ -106,64 +91,92 @@ class MainActivity : ComponentActivity() {
             environment = Environment.SANDBOX
         )
 
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                checkoutComponents = CheckoutComponentsFactory(config = configuration).create()
+        return componentOption to config
+    }
 
-//With or without the componentOption I can see the save card checkbox
-                var flow = checkoutComponents.create(
-                    PaymentMethodName.Card,
-                    componentOption
-                )
-                isCardAvailable = flow.isAvailable()
+    private fun renderContent() {
+        setContent {
+            var flow by remember { mutableStateOf<PaymentMethodComponent?>(null) }
+            var selectedMethod by remember { mutableStateOf("") }
+            var paymentSessionID by remember { mutableStateOf("") }
+            var paymentSessionSecret by remember { mutableStateOf("") }
+            var isCardAvailable by remember { mutableStateOf(false) }
 
-                withContext(Dispatchers.Main) {
-                    setContent {
-                        var selectedMethod by remember { mutableStateOf("") }
 
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(16.dp)
+            LaunchedEffect(selectedMethod) {
+                if (selectedMethod == "card") {
+                    val (options, config) = createConfigs(paymentSessionID, paymentSessionSecret)
+                    CoroutineScope(Dispatchers.IO).launch {
+                        try {
+                            checkoutComponents = CheckoutComponentsFactory(config = config).create()
+
+                            flow = checkoutComponents.create(
+                                PaymentMethodName.Card,
+                                options
+                            )
+                            isCardAvailable = flow?.isAvailable() ?: false
+
+                        } catch (checkoutError: CheckoutError) {
+                            Log.e(
+                                "flow component error",
+                                "Initialization error: ${checkoutError.message}, Details: ${checkoutError.details}"
+                            )
+                        }
+                    }
+                }
+            }
+
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .safeDrawingPadding()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = spacedBy(8.dp)
+            ) {
+                item {
+                    OutlinedTextField(
+                        value = paymentSessionID, label = { Text("Payment Session ID") },
+                        onValueChange = { paymentSessionID = it },
+                        modifier = Modifier.fillParentMaxWidth()
+                    )
+                }
+
+                item {
+                    OutlinedTextField(
+                        value = paymentSessionSecret, label = { Text("Payment Session Secret") },
+                        onValueChange = { paymentSessionSecret = it },
+                        modifier = Modifier.fillParentMaxWidth()
+                    )
+                }
+
+                item {
+                    Row {
+                        Button(
+                            enabled = paymentSessionID.isNotBlank() && paymentSessionSecret.isNotBlank(),
+                            onClick = {
+                                if (paymentSessionID.isEmpty() || paymentSessionSecret.isEmpty()) {
+                                    Log.e("flow component error", "Please enter Payment Session ID and Secret")
+                                    return@Button
+                                } else {
+                                    selectedMethod = "card"
+                                }
+                            },
                         ) {
-                            Row {
-                                Button(
-                                    onClick = { selectedMethod = "card" },
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Text("Pay with Card")
-                                }
+                            Text("Render Card Component")
+                        }
+                    }
+                }
 
-                                Spacer(modifier = Modifier.width(16.dp))
-
-                            }
-
-                            Spacer(modifier = Modifier.height(32.dp))
-
-                            when (selectedMethod) {
-                                "card" -> {
-                                    if (isCardAvailable) {
-                                        AndroidView(
-                                            factory = { context ->
-                                                FrameLayout(context).apply {
-                                                    addView(flow.provideView(this))
-                                                }
-                                            }
-                                        )
-                                    } else {
-                                        Text("Card payment is not available.")
-                                    }
-                                }
-
+                item {
+                    when (selectedMethod) {
+                        "card" -> {
+                            if (isCardAvailable) {
+                                flow?.Render()
                             }
                         }
                     }
                 }
-            } catch (checkoutError: CheckoutError) {
-                Log.e(
-                    "flow component error",
-                    "Initialization error: ${checkoutError.message}, Details: ${checkoutError.details}"
-                )
             }
         }
     }
