@@ -7,4 +7,14 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- Merchant-supplied Flow design token palette -->
+    <color name="color_0ba5ec">#FF0BA5EC</color>
+    <color name="color_fc4f00">#FFFC4F00</color>
+    <color name="color_E2E4E9">#FFE2E4E9</color>
+    <color name="color_9c9da1">#FF9C9DA1</color>
+    <color name="color_DF1C41">#FFDF1C41</color>
+    <color name="color_041036">#FF041036</color>
+    <color name="color_868C98">#FF868C98</color>
+    <color name="color_0A0D14">#FF0A0D14</color>
 </resources>
